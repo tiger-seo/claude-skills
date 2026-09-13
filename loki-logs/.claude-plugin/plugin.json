@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Query Grafana Loki logs from Claude Code via a stdlib-only Python client.",
   "author": { "name": "tiger-seo", "url": "https://github.com/tiger-seo" },
-  "repository": "https://github.com/tiger-seo/loki-logs",
+  "repository": "https://github.com/tiger-seo/claude-skills",
   "license": "MIT",
   "keywords": ["loki", "logs", "logql", "grafana", "observability"]
 }

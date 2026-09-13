@@ -22,20 +22,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Run unit tests
-        run: python -m unittest discover -s tests -v
+        run: python -m unittest discover -s loki-logs/tests -v
 
       - name: Validate plugin manifests
         shell: python
         run: |
           import json
           import sys
-
-          with open(".claude-plugin/plugin.json", encoding="utf-8") as fh:
-              plugin = json.load(fh)
-          required_plugin_fields = ["name", "version", "description"]
-          missing = [f for f in required_plugin_fields if f not in plugin]
-          if missing:
-              sys.exit(f"plugin.json missing fields: {missing}")
+          from pathlib import Path
 
           with open(".claude-plugin/marketplace.json", encoding="utf-8") as fh:
               marketplace = json.load(fh)
@@ -43,7 +37,18 @@ jobs:
           missing = [f for f in required_marketplace_fields if f not in marketplace]
           if missing:
               sys.exit(f"marketplace.json missing fields: {missing}")
-          if not any(p.get("name") == plugin["name"] for p in marketplace["plugins"]):
-              sys.exit("marketplace.json does not list the plugin from plugin.json")
 
-          print("plugin.json and marketplace.json are valid")
+          for entry in marketplace["plugins"]:
+              plugin_path = Path(entry["source"]) / ".claude-plugin" / "plugin.json"
+              if not plugin_path.exists():
+                  sys.exit(f"marketplace entry {entry['name']!r} points to missing {plugin_path}")
+              with plugin_path.open(encoding="utf-8") as fh:
+                  plugin = json.load(fh)
+              required_plugin_fields = ["name", "version", "description"]
+              missing = [f for f in required_plugin_fields if f not in plugin]
+              if missing:
+                  sys.exit(f"{plugin_path} missing fields: {missing}")
+              if plugin["name"] != entry["name"]:
+                  sys.exit(f"{plugin_path} name {plugin['name']!r} != marketplace entry {entry['name']!r}")
+
+          print(f"marketplace.json and {len(marketplace['plugins'])} plugin manifest(s) are valid")

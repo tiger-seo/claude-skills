@@ -19,26 +19,38 @@ the agent which commands to call and how to read the output. The parsing semanti
 CLI flags, env vars, and `~/.config/.loki/loki.json`; commands `query`, `labels`, `label-values`, `series`;
 no authentication (plain HTTP); repo ready to push to GitHub and install in one step.
 
+## Update (2026-09-13): moved into the `claude-skills` monorepo
+
+Before the first push, the project was restructured to host multiple personal skills in one
+repository rather than one repo per skill: the local project moved from `D:\projects-claude\loki-logs`
+to `D:\projects-claude\claude-skills`, and everything below (scripts, tests, `SKILL.md`, this plan)
+now lives under a `loki-logs/` subfolder instead of the repo root. Only the marketplace manifest
+stays at the repo root, pointing at each skill's subfolder via `source`. The sections below describe
+the original single-repo design; paths need `loki-logs/` prefixed where they reference the repo root,
+and `tiger-seo/loki-logs` on GitHub is now `tiger-seo/claude-skills`.
+
 ## Repository structure (created from scratch)
 
 Repo root = skill root. The docs allow a single `SKILL.md` at the plugin root — that way **the same layout**
 serves both installation paths (plugin from GitHub and a symlink under `~/.claude/skills`).
 
 ```
-D:\projects-claude\loki-logs\
-├── .claude-plugin/
-│   ├── plugin.json          # plugin manifest (name, version, description, author, license, repository)
-│   └── marketplace.json     # single-plugin marketplace: source "./" — so it installs straight from the repo
-├── SKILL.md                 # main artifact: instructions for the agent
-├── scripts/loki.py          # the whole CLI in one file, stdlib only
-├── references/logql.md      # LogQL cheat sheet — read by the agent as needed
-├── tests/test_loki.py       # unittest, no network
-├── .github/workflows/ci.yml # tests on ubuntu + windows
-├── README.md                # install instructions + examples for humans
-├── CHANGELOG.md
-├── LICENSE                  # MIT
+D:\projects-claude\claude-skills\
+├── .claude-plugin/marketplace.json  # lists every skill; source "./loki-logs" for this one
+├── README.md                        # top-level: collection overview, links to each skill
+├── LICENSE                          # MIT, repo-wide
 ├── .gitignore
-└── docs/PLAN.md             # this plan
+├── .github/workflows/ci.yml         # tests on ubuntu + windows, for all skills
+└── loki-logs/
+    ├── .claude-plugin/plugin.json   # plugin manifest (name, version, description, author, license, repository)
+    ├── SKILL.md                     # main artifact: instructions for the agent
+    ├── scripts/loki.py              # the whole CLI in one file, stdlib only
+    ├── references/logql.md          # LogQL cheat sheet — read by the agent as needed
+    ├── tests/test_loki.py           # unittest, no network
+    ├── evals/                       # claude plugin eval cases for SKILL.md
+    ├── README.md                    # skill-specific install instructions + examples
+    ├── CHANGELOG.md
+    └── docs/PLAN.md                 # this plan
 ```
 
 ### Meta-files for installing from GitHub
@@ -52,7 +64,7 @@ D:\projects-claude\loki-logs\
   "version": "0.1.0",
   "description": "Query Grafana Loki logs from Claude Code via a stdlib-only Python client.",
   "author": { "name": "tiger-seo", "url": "https://github.com/tiger-seo" },
-  "repository": "https://github.com/tiger-seo/loki-logs",
+  "repository": "https://github.com/tiger-seo/claude-skills",
   "license": "MIT",
   "keywords": ["loki", "logs", "logql", "grafana", "observability"]
 }
@@ -65,7 +77,7 @@ D:\projects-claude\loki-logs\
   "name": "tiger-seo-skills",
   "owner": { "name": "tiger-seo", "url": "https://github.com/tiger-seo" },
   "plugins": [
-    { "name": "loki-logs", "source": "./",
+    { "name": "loki-logs", "source": "./loki-logs",
       "description": "Query Grafana Loki logs — LogQL over a time range, label discovery, stream listing." }
   ]
 }
@@ -78,16 +90,17 @@ Three installation methods, all documented in `README.md`:
 
 1. **Via the Claude command (recommended, cross-platform)** — in a session:
    ```
-   /plugin marketplace add tiger-seo/loki-logs
+   /plugin marketplace add tiger-seo/claude-skills
    /plugin install loki-logs@tiger-seo-skills
    ```
-   or from the terminal (non-interactive): `claude plugin marketplace add tiger-seo/loki-logs`
+   or from the terminal (non-interactive): `claude plugin marketplace add tiger-seo/claude-skills`
    and `claude plugin install loki-logs@tiger-seo-skills` (`--scope user|project|local`).
    The skill becomes available as `/loki-logs:loki-logs`; after install you may need `/reload-plugins`.
 2. **Personal skill via clone + symlink** (for development; Claude Code follows the symlink):
-   `git clone …` + `cmd /c mklink /J "%USERPROFILE%\.claude\skills\loki-logs" "D:\projects-claude\loki-logs"`
-   (on macOS/Linux — `ln -s`). Invoked simply as `/loki-logs`.
-3. **Project skill:** clone/submodule into `<repo>/.claude/skills/loki-logs`
+   `git clone …` + `cmd /c mklink /J "%USERPROFILE%\.claude\skills\loki-logs" "D:\projects-claude\claude-skills\loki-logs"`
+   (on macOS/Linux — `ln -s`, pointing at the `loki-logs/` subfolder, not the repo root). Invoked
+   simply as `/loki-logs`.
+3. **Project skill:** symlink or copy this repo's `loki-logs/` subfolder into `<repo>/.claude/skills/loki-logs`
 
 ## `SKILL.md` — contents
 
@@ -186,13 +199,13 @@ malformed LogQL belongs)
 URL construction for all 4 commands, time parsing (ISO/relative/unix/ns), response flattening and sorting,
 level/message extraction, output formatters, config priority (flag > env > file).
 
-`.github/workflows/ci.yml`: matrix of `ubuntu-latest` + `windows-latest`, Python 3.9 and 3.13,
-`python -m unittest discover -s tests -v`, plus a step verifying that `plugin.json` and `marketplace.json`
-are valid JSON with the expected fields.
+`.github/workflows/ci.yml` (repo root, covers every skill): matrix of `ubuntu-latest` +
+`windows-latest`, Python 3.9 and 3.13, `python -m unittest discover -s loki-logs/tests -v`, plus a
+step that walks `marketplace.json`'s `plugins` list and validates each one's `plugin.json`.
 
 ## Verification
 
-1. `cd D:\projects-claude\loki-logs && python -m unittest discover -s tests -v` — all tests green.
+1. `cd D:\projects-claude\claude-skills\loki-logs && python -m unittest discover -s tests -v` — all tests green.
 2. Live smoke test against a server from the extension's defaults:
    - `python scripts/loki.py --url http://loki.lan:3100 labels`
    - `python scripts/loki.py --url http://loki.lan:3100 label-values app`
@@ -200,11 +213,12 @@ are valid JSON with the expected fields.
    - the same query with `--output ndjson` and with `--fields level,message`
 3. Negative cases: nonexistent host → exit 3 with a human-readable error; `query '{'` → exit 4 with Loki's text.
 4. Create `~/.config/.loki/loki.json`, run `python scripts/loki.py labels` without `--url` — works.
-5. Local skill: junction at `~/.claude/skills/loki-logs`, in a new session ask "show me errors from Loki
-   over the last hour" — the skill is picked up, `/skills` shows it, the script runs without a permission prompt.
-6. Local marketplace check before pushing: `/plugin marketplace add D:/projects-claude/loki-logs`
+5. Local skill: junction at `~/.claude/skills/loki-logs` pointing at the `loki-logs/` subfolder, in a
+   new session ask "show me errors from Loki over the last hour" — the skill is picked up, `/skills`
+   shows it, the script runs without a permission prompt.
+6. Local marketplace check before pushing: `/plugin marketplace add D:/projects-claude/claude-skills`
    (adding from a local path) → `/plugin install loki-logs@tiger-seo-skills`.
-7. After pushing to GitHub: in a clean session, `/plugin marketplace add tiger-seo/loki-logs` →
+7. After pushing to GitHub: in a clean session, `/plugin marketplace add tiger-seo/claude-skills` →
    `/plugin install loki-logs@tiger-seo-skills` → `/loki-logs:loki-logs` is available and works.
 
 ## Out of scope (deliberately)

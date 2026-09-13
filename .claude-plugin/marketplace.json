@@ -3,7 +3,7 @@
   "description": "Personal marketplace of tiger-seo's Claude Code plugins.",
   "owner": { "name": "tiger-seo", "url": "https://github.com/tiger-seo" },
   "plugins": [
-    { "name": "loki-logs", "source": "./",
+    { "name": "loki-logs", "source": "./loki-logs",
       "description": "Query Grafana Loki logs — LogQL over a time range, label discovery, stream listing." }
   ]
 }
