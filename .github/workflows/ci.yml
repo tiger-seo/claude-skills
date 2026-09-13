@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.9", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Validate plugin manifests
+        shell: python
+        run: |
+          import json
+          import sys
+
+          with open(".claude-plugin/plugin.json", encoding="utf-8") as fh:
+              plugin = json.load(fh)
+          required_plugin_fields = ["name", "version", "description"]
+          missing = [f for f in required_plugin_fields if f not in plugin]
+          if missing:
+              sys.exit(f"plugin.json missing fields: {missing}")
+
+          with open(".claude-plugin/marketplace.json", encoding="utf-8") as fh:
+              marketplace = json.load(fh)
+          required_marketplace_fields = ["name", "owner", "plugins"]
+          missing = [f for f in required_marketplace_fields if f not in marketplace]
+          if missing:
+              sys.exit(f"marketplace.json missing fields: {missing}")
+          if not any(p.get("name") == plugin["name"] for p in marketplace["plugins"]):
+              sys.exit("marketplace.json does not list the plugin from plugin.json")
+
+          print("plugin.json and marketplace.json are valid")
